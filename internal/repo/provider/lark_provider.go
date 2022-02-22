@@ -17,10 +17,6 @@ import (
 	"go.uber.org/zap"
 )
 
-const (
-	larkApiRoot = "https://open.feishu.cn/open-apis/bot/v2/hook"
-)
-
 type LarkProvider struct {
 	config     *platform.Config
 	logger     *zap.SugaredLogger
@@ -92,7 +88,7 @@ func (lp *LarkProvider) Broadcast(
 		return
 	}
 
-	targetUrl := fmt.Sprintf("%s/%s", larkApiRoot, lp.config.Lark.HookId)
+	targetUrl := lp.config.Lark.Hook
 
 	req, err := request.NewRequestWithContext(
 		ctx,

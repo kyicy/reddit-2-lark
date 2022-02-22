@@ -4,6 +4,9 @@ import "os"
 
 // Config definition
 type Config struct {
+	Cron struct {
+		Internal string `toml:"internal" json:"internal"`
+	} `toml:"cron" json:"cron"`
 	Reddit struct {
 		Subreddit string `toml:"subreddit" json:"subreddit"`
 		ClientId  string `toml:"clientId" json:"clientId"`
@@ -12,8 +15,8 @@ type Config struct {
 		Password  string `toml:"password" json:"password"`
 	} `toml:"reddit" json:"reddit"`
 	Lark struct {
-		HookId string `toml:"hookId" json:"hookId"`
-		Token  string `toml:"token" json:"token"`
+		Hook  string `toml:"hook" json:"hook"`
+		Token string `toml:"token" json:"token"`
 	} `toml:"lark" json:"lark"`
 }
 
@@ -24,7 +27,7 @@ func GetEnvConfig() *Config {
 	config.Reddit.Secret = os.Getenv("reddit_secret")
 	config.Reddit.Username = os.Getenv("reddit_username")
 	config.Reddit.Password = os.Getenv("reddit_password")
-	config.Lark.HookId = os.Getenv("lark_hook_id")
+	config.Lark.Hook = os.Getenv("lark_hook")
 	config.Lark.Token = os.Getenv("lark_token")
 	return config
 }

@@ -35,8 +35,7 @@ func NewAgent(conf *platform.Config) *Agent {
 		}
 
 	}
-	agent.Cron.AddFunc("@every 6h", cronFunc)
-	go cronFunc()
+	agent.Cron.AddFunc(conf.Cron.Internal, cronFunc)
 	agent.Start()
 	return agent
 }

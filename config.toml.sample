@@ -1,3 +1,6 @@
+[cron]
+internal="@every 6h"
+
 [reddit]
 subreddit=""
 clientId=""
