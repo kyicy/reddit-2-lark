@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"log"
 	"os"
 	"os/signal"
@@ -67,7 +68,7 @@ func (c *cli) setup(cmd *cobra.Command, args []string) error {
 			return err
 		}
 		_, err = os.Stat(xMarkFile)
-		if err == os.ErrNotExist {
+		if errors.Is(err, os.ErrNotExist) {
 			c.xMark.Items = make(map[string]*platform.Mark)
 			return nil
 		}
