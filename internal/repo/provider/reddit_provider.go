@@ -114,17 +114,20 @@ func (rp *RedditProvider) getAccessToken(
 	return
 }
 
+func (rp *RedditProvider) GetHeader() string {
+	return "top /r/Eldenring posts"
+}
+
 func (rp *RedditProvider) GetTopPosts(
 	ctx context.Context,
-	subReddit string,
-) (postListResp *PostListResp, err error) {
+) (items []Broadcastable, err error) {
 	token, err := rp.getAccessToken(ctx)
 	if err != nil {
 		rp.logger.Error(err)
 		return
 	}
 
-	targetUrl := fmt.Sprintf("%s/r/%s/hot", redditOauthRoot, subReddit)
+	targetUrl := fmt.Sprintf("%s/r/%s/hot", redditOauthRoot, rp.config.Reddit.Subreddit)
 
 	req, err := request.NewRequestWithContext(
 		ctx,
@@ -162,11 +165,16 @@ func (rp *RedditProvider) GetTopPosts(
 		rp.logger.Error(err)
 		return
 	}
-	postListResp = new(PostListResp)
+	postListResp := new(PostListResp)
 	err = json.Unmarshal(bs, postListResp)
 	if err != nil {
 		rp.logger.Error(err)
 		return
 	}
+	items = make([]Broadcastable, len(postListResp.Data.Children))
+	for i, item := range postListResp.Data.Children {
+		items[i] = item
+	}
+
 	return
 }

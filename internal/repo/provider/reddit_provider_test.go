@@ -22,6 +22,6 @@ func TestRedditTopPosts(t *testing.T) {
 	rp := NewRedditProvider(conf)
 	ctx := context.Background()
 
-	_, err := rp.GetTopPosts(ctx, conf.Reddit.Subreddit)
+	_, err := rp.GetTopPosts(ctx)
 	require.NoError(t, err)
 }

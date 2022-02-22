@@ -17,19 +17,31 @@ import (
 	"go.uber.org/zap"
 )
 
+type Broadcastable interface {
+	GetTitle() string
+	GetLink() string
+}
+
+type BroadcastSource interface {
+	GetHeader() string
+	GetTopPosts(context.Context) ([]Broadcastable, error)
+}
+
 type LarkProvider struct {
 	config     *platform.Config
 	logger     *zap.SugaredLogger
 	httpClient *request.RequestProvider
+	sources    []BroadcastSource
 }
 
-func NewLarkProvider(conf *platform.Config) *LarkProvider {
+func NewLarkProvider(conf *platform.Config, sources ...BroadcastSource) *LarkProvider {
 	rp, _ := request.NewRequestProvider(http.DefaultClient)
 	z, _ := zap.NewDevelopment()
 	return &LarkProvider{
 		config:     conf,
 		logger:     z.Sugar().Named("lark_provider"),
 		httpClient: rp,
+		sources:    sources,
 	}
 }
 
@@ -48,74 +60,81 @@ func (lp *LarkProvider) genSign(timestamp int64) (string, error) {
 
 func (lp *LarkProvider) Broadcast(
 	ctx context.Context,
-	postListResp *PostListResp,
-) (err error) {
-	timestamp := time.Now().UnixNano() / int64(time.Second)
-	sign, err := lp.genSign(timestamp)
-	if err != nil {
-		return
-	}
-	botMsgReq := &LarkBotMsgReq{
-		MsgType:   "post",
-		Timestamp: fmt.Sprintf("%d", timestamp),
-		Sign:      sign,
-	}
-
-	t := &botMsgReq.Content.Post.ZhCn
-	t.Title = fmt.Sprintf("Breaking posts from /r/%s", lp.config.Reddit.Subreddit)
-	t.Content = make([][]map[string]interface{}, 0)
-	for i, child := range postListResp.Data.Children {
-		if i >= 14 {
-			break
+) {
+	for _, src := range lp.sources {
+		items, err := src.GetTopPosts(ctx)
+		if err != nil {
+			lp.logger.Error(err)
+			continue
 		}
-		t.Content = append(t.Content, []map[string]interface{}{
-			{
-				"tag":       "text",
-				"un_escape": true,
-				"lines":     1,
-				"text":      fmt.Sprintf("%d: ", i+1),
-			},
-			{
-				"tag":  "a",
-				"text": child.Data.Title,
-				"href": fmt.Sprintf("https://www.reddit.com%s", child.Data.PermaLink),
-			},
-		})
-	}
-	body, err := json.Marshal(botMsgReq)
-	if err != nil {
-		lp.logger.Error(err)
-		return
-	}
 
-	targetUrl := lp.config.Lark.Hook
+		timestamp := time.Now().UnixNano() / int64(time.Second)
+		sign, err := lp.genSign(timestamp)
+		if err != nil {
+			lp.logger.Error(err)
+			continue
+		}
+		botMsgReq := &LarkBotMsgReq{
+			MsgType:   "post",
+			Timestamp: fmt.Sprintf("%d", timestamp),
+			Sign:      sign,
+		}
 
-	req, err := request.NewRequestWithContext(
-		ctx,
-		http.MethodPost,
-		targetUrl,
-		struct {
-			ContentType string `rh:"Content-Type"`
-		}{
-			"application/json",
-		},
-		bytes.NewReader(body),
-	)
-	if err != nil {
-		lp.logger.Error(err)
-		return
+		t := &botMsgReq.Content.Post.ZhCn
+		t.Title = src.GetHeader()
+		t.Content = make([][]map[string]interface{}, 0)
+		for i, item := range items {
+			t.Content = append(t.Content, []map[string]interface{}{
+				{
+					"tag":       "text",
+					"un_escape": true,
+					"lines":     1,
+					"text":      fmt.Sprintf("%2d: ", i+1),
+				},
+				{
+					"tag":  "a",
+					"text": item.GetTitle(),
+					"href": item.GetLink(),
+				},
+			})
+		}
+		if len(t.Content) == 0 {
+			continue
+		}
+		body, err := json.Marshal(botMsgReq)
+		if err != nil {
+			lp.logger.Error(err)
+			continue
+		}
+
+		targetUrl := lp.config.Lark.Hook
+
+		req, err := request.NewRequestWithContext(
+			ctx,
+			http.MethodPost,
+			targetUrl,
+			struct {
+				ContentType string `rh:"Content-Type"`
+			}{
+				"application/json",
+			},
+			bytes.NewReader(body),
+		)
+		if err != nil {
+			lp.logger.Error(err)
+			continue
+		}
+		res, err := lp.httpClient.Do(req)
+		if err != nil {
+			lp.logger.Error(err)
+			continue
+		}
+		defer res.Body.Close()
+		bs, err := io.ReadAll(res.Body)
+		if err != nil {
+			lp.logger.Error(err)
+			continue
+		}
+		lp.logger.Info(string(bs))
 	}
-	res, err := lp.httpClient.Do(req)
-	if err != nil {
-		lp.logger.Error(err)
-		return
-	}
-	defer res.Body.Close()
-	bs, err := io.ReadAll(res.Body)
-	if err != nil {
-		lp.logger.Error(err)
-		return
-	}
-	lp.logger.Info(string(bs))
-	return
 }
