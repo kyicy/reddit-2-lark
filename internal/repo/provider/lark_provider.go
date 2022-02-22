@@ -76,6 +76,7 @@ func (lp *LarkProvider) Broadcast(
 	t.Title = lp.config.Lark.Header
 	t.Content = make([][]map[string]interface{}, 0)
 
+	count := 0
 	for _, src := range lp.sources {
 		items, err := src.GetTopPosts(ctx)
 		if err != nil {
@@ -83,13 +84,14 @@ func (lp *LarkProvider) Broadcast(
 			continue
 		}
 
-		for i, item := range items {
+		for _, item := range items {
+			count += 1
 			t.Content = append(t.Content, []map[string]interface{}{
 				{
 					"tag":       "text",
 					"un_escape": true,
 					"lines":     1,
-					"text":      fmt.Sprintf("%2d: ", i+1),
+					"text":      fmt.Sprintf("%2d: ", count),
 				},
 				{
 					"tag":  "a",
