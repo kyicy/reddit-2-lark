@@ -50,7 +50,7 @@ func (lp *LarkProvider) Broadcast(
 	ctx context.Context,
 	postListResp *PostListResp,
 ) (err error) {
-	timestamp := time.Now().UnixMilli() / 1000
+	timestamp := time.Now().UnixNano() / int64(time.Second)
 	sign, err := lp.genSign(timestamp)
 	if err != nil {
 		return
