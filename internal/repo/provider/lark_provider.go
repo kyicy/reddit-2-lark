@@ -12,8 +12,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/kyicy/reddit-2-lark/internal/platform"
 	"github.com/kyicy/request"
+	"github.com/kyicy/rss-2-lark/internal/platform"
 	"go.uber.org/zap"
 )
 
@@ -23,7 +23,7 @@ type Broadcastable interface {
 }
 
 type BroadcastSource interface {
-	GetHeader() string
+	GetName() string
 	GetTopPosts(context.Context) ([]Broadcastable, error)
 }
 
@@ -61,6 +61,21 @@ func (lp *LarkProvider) genSign(timestamp int64) (string, error) {
 func (lp *LarkProvider) Broadcast(
 	ctx context.Context,
 ) {
+	timestamp := time.Now().UnixNano() / int64(time.Second)
+	sign, err := lp.genSign(timestamp)
+	if err != nil {
+		lp.logger.Error(err)
+		return
+	}
+	botMsgReq := &LarkBotMsgReq{
+		MsgType:   "post",
+		Timestamp: fmt.Sprintf("%d", timestamp),
+		Sign:      sign,
+	}
+	t := &botMsgReq.Content.Post.ZhCn
+	t.Title = lp.config.Lark.Header
+	t.Content = make([][]map[string]interface{}, 0)
+
 	for _, src := range lp.sources {
 		items, err := src.GetTopPosts(ctx)
 		if err != nil {
@@ -68,21 +83,6 @@ func (lp *LarkProvider) Broadcast(
 			continue
 		}
 
-		timestamp := time.Now().UnixNano() / int64(time.Second)
-		sign, err := lp.genSign(timestamp)
-		if err != nil {
-			lp.logger.Error(err)
-			continue
-		}
-		botMsgReq := &LarkBotMsgReq{
-			MsgType:   "post",
-			Timestamp: fmt.Sprintf("%d", timestamp),
-			Sign:      sign,
-		}
-
-		t := &botMsgReq.Content.Post.ZhCn
-		t.Title = src.GetHeader()
-		t.Content = make([][]map[string]interface{}, 0)
 		for i, item := range items {
 			t.Content = append(t.Content, []map[string]interface{}{
 				{
@@ -93,48 +93,50 @@ func (lp *LarkProvider) Broadcast(
 				},
 				{
 					"tag":  "a",
-					"text": item.GetTitle(),
+					"text": fmt.Sprintf("[%s]%s", src.GetName(), item.GetTitle()),
 					"href": item.GetLink(),
 				},
 			})
 		}
-		if len(t.Content) == 0 {
-			continue
-		}
-		body, err := json.Marshal(botMsgReq)
-		if err != nil {
-			lp.logger.Error(err)
-			continue
-		}
 
-		targetUrl := lp.config.Lark.Hook
-
-		req, err := request.NewRequestWithContext(
-			ctx,
-			http.MethodPost,
-			targetUrl,
-			struct {
-				ContentType string `rh:"Content-Type"`
-			}{
-				"application/json",
-			},
-			bytes.NewReader(body),
-		)
-		if err != nil {
-			lp.logger.Error(err)
-			continue
-		}
-		res, err := lp.httpClient.Do(req)
-		if err != nil {
-			lp.logger.Error(err)
-			continue
-		}
-		defer res.Body.Close()
-		bs, err := io.ReadAll(res.Body)
-		if err != nil {
-			lp.logger.Error(err)
-			continue
-		}
-		lp.logger.Info(string(bs))
 	}
+
+	if len(t.Content) == 0 {
+		return
+	}
+	body, err := json.Marshal(botMsgReq)
+	if err != nil {
+		lp.logger.Error(err)
+		return
+	}
+
+	targetUrl := lp.config.Lark.Hook
+
+	req, err := request.NewRequestWithContext(
+		ctx,
+		http.MethodPost,
+		targetUrl,
+		struct {
+			ContentType string `rh:"Content-Type"`
+		}{
+			"application/json",
+		},
+		bytes.NewReader(body),
+	)
+	if err != nil {
+		lp.logger.Error(err)
+		return
+	}
+	res, err := lp.httpClient.Do(req)
+	if err != nil {
+		lp.logger.Error(err)
+		return
+	}
+	defer res.Body.Close()
+	bs, err := io.ReadAll(res.Body)
+	if err != nil {
+		lp.logger.Error(err)
+		return
+	}
+	lp.logger.Info(string(bs))
 }

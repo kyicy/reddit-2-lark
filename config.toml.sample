@@ -1,12 +1,12 @@
-[cron]
-internal="@every 6h"
+keywords=["艾尔登法环", "老头环", "黑暗之魂","恶魔之魂","黑魂","", "血源", "宫崎英高", ""]
 
-[reddit]
-subreddit=""
-clientId=""
-secret=""
-username=""
-password=""
+[cron]
+internal="@every 10m"
+
+[feed.vgtime]
+[feed.yystv]
+[feed.chuapp]
+[feed.gcores]
 
 [lark]
 hookId=""

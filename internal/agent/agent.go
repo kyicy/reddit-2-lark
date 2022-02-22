@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/kyicy/reddit-2-lark/internal/platform"
-	"github.com/kyicy/reddit-2-lark/internal/repo/provider"
+	"github.com/kyicy/rss-2-lark/internal/platform"
+	"github.com/kyicy/rss-2-lark/internal/repo/provider"
 	"github.com/robfig/cron/v3"
 )
 
@@ -18,10 +18,16 @@ func NewAgent(conf *platform.Config) *Agent {
 		cron.New(),
 	}
 
-	rp := provider.NewRedditProvider(conf)
-	vp := provider.NewVgtimeProvider()
+	providers := make([]provider.BroadcastSource, 0)
 
-	lp := provider.NewLarkProvider(conf, rp, vp)
+	for _, rssSrc := range conf.Feed {
+		providers = append(
+			providers,
+			provider.NewRssProvider(rssSrc.Name, rssSrc.Src, conf),
+		)
+	}
+
+	lp := provider.NewLarkProvider(conf, providers...)
 	cronFunc := func() {
 		ctx := context.Background()
 		ctx, cancel := context.WithTimeout(ctx, time.Minute*2)

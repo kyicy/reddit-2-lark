@@ -6,8 +6,8 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/kyicy/reddit-2-lark/internal/agent"
-	"github.com/kyicy/reddit-2-lark/internal/platform"
+	"github.com/kyicy/rss-2-lark/internal/agent"
+	"github.com/kyicy/rss-2-lark/internal/platform"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
