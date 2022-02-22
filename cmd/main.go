@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"log"
 	"os"
 	"os/signal"
@@ -16,7 +17,7 @@ func main() {
 	cli := &cli{}
 
 	cmd := &cobra.Command{
-		PreRunE: cli.setupConfig,
+		PreRunE: cli.setup,
 		RunE:    cli.run,
 	}
 
@@ -30,37 +31,69 @@ func main() {
 }
 
 type cli struct {
-	cfg platform.Config
+	cfg   platform.Config
+	xMark platform.XMark
 }
 
 func setupFlags(cmd *cobra.Command) error {
 	cmd.Flags().String("conf", "config.toml", "Path to config file.")
+	cmd.Flags().String("x-mark", "x-mark.json", "Path to x-mark file.")
 	return viper.BindPFlags(cmd.Flags())
 }
 
-func (c *cli) setupConfig(cmd *cobra.Command, args []string) error {
-	var err error
-
-	configFile, err := cmd.Flags().GetString("conf")
-	if err != nil {
-		return err
+func (c *cli) setup(cmd *cobra.Command, args []string) error {
+	{
+		// conf file
+		configFile, err := cmd.Flags().GetString("conf")
+		if err != nil {
+			return err
+		}
+		if _, err = os.Stat(configFile); err != nil {
+			return err
+		}
+		// read from config file
+		viper.SetConfigFile(configFile)
+		if err = viper.ReadInConfig(); err != nil {
+			return err
+		}
+		if err = viper.Unmarshal(&c.cfg); err != nil {
+			return err
+		}
 	}
-	_, err = os.Stat(configFile)
-	if err != nil {
-		return err
+	{
+		// x-mark file
+		xMarkFile, err := cmd.Flags().GetString("x-mark")
+		if err != nil {
+			return err
+		}
+		_, err = os.Stat(xMarkFile)
+		if err == os.ErrNotExist {
+			c.xMark.Items = make(map[string]*platform.Mark)
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		bs, err := os.ReadFile(xMarkFile)
+		if err != nil {
+			return err
+		}
+		return json.Unmarshal(bs, &c.xMark)
 	}
-	// read from config file
-	viper.SetConfigFile(configFile)
-	if err = viper.ReadInConfig(); err != nil {
-		return err
-	}
-	return viper.Unmarshal(&c.cfg)
 }
 
 func (c *cli) run(cmd *cobra.Command, args []string) error {
-	_ = agent.NewAgent(&c.cfg)
+	_ = agent.NewAgent(&c.cfg, &c.xMark)
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
 	<-sig
-	return nil
+	bs, err := json.Marshal(c.xMark)
+	if err != nil {
+		return err
+	}
+	xMarkFile, err := cmd.Flags().GetString("x-mark")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(xMarkFile, bs, 0755)
 }

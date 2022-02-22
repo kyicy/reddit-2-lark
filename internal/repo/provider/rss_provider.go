@@ -47,8 +47,8 @@ func (rp *RssProvider) GetTopPosts(
 		for _, keyword := range rp.conf.Keywords {
 			if strings.Contains(item.Title, keyword) {
 				matched = true
+				break
 			}
-			break
 		}
 		if matched {
 			items = append(items, (*feedItem)(item))

@@ -1,6 +1,10 @@
 package provider
 
-import "github.com/mmcdole/gofeed"
+import (
+	"time"
+
+	"github.com/mmcdole/gofeed"
+)
 
 type feedItem gofeed.Item
 
@@ -10,4 +14,8 @@ func (fi *feedItem) GetTitle() string {
 
 func (fi *feedItem) GetLink() string {
 	return fi.Link
+}
+
+func (fi *feedItem) GetPubDate() time.Time {
+	return *fi.PublishedParsed
 }

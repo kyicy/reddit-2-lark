@@ -13,9 +13,13 @@ type Agent struct {
 	*cron.Cron
 }
 
-func NewAgent(conf *platform.Config) *Agent {
+func NewAgent(conf *platform.Config, xMark *platform.XMark) *Agent {
 	agent := &Agent{
 		cron.New(),
+	}
+
+	for _, mark := range xMark.Items {
+		mark.LastPubDate, _ = time.Parse(time.RFC3339, mark.LastPubDateString)
 	}
 
 	providers := make([]provider.BroadcastSource, 0)
@@ -27,7 +31,7 @@ func NewAgent(conf *platform.Config) *Agent {
 		)
 	}
 
-	lp := provider.NewLarkProvider(conf, providers...)
+	lp := provider.NewLarkProvider(conf, xMark, providers...)
 	cronFunc := func() {
 		ctx := context.Background()
 		ctx, cancel := context.WithTimeout(ctx, time.Minute*2)

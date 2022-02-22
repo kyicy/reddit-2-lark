@@ -20,6 +20,7 @@ import (
 type Broadcastable interface {
 	GetTitle() string
 	GetLink() string
+	GetPubDate() time.Time
 }
 
 type BroadcastSource interface {
@@ -29,16 +30,22 @@ type BroadcastSource interface {
 
 type LarkProvider struct {
 	config     *platform.Config
+	xMark      *platform.XMark
 	logger     *zap.SugaredLogger
 	httpClient *request.RequestProvider
 	sources    []BroadcastSource
 }
 
-func NewLarkProvider(conf *platform.Config, sources ...BroadcastSource) *LarkProvider {
+func NewLarkProvider(
+	conf *platform.Config,
+	xMark *platform.XMark,
+	sources ...BroadcastSource,
+) *LarkProvider {
 	rp, _ := request.NewRequestProvider(http.DefaultClient)
 	z, _ := zap.NewDevelopment()
 	return &LarkProvider{
 		config:     conf,
+		xMark:      xMark,
 		logger:     z.Sugar().Named("lark_provider"),
 		httpClient: rp,
 		sources:    sources,
@@ -77,6 +84,7 @@ func (lp *LarkProvider) Broadcast(
 	t.Content = make([][]map[string]interface{}, 0)
 
 	count := 0
+	markItems := lp.xMark.Items
 	for _, src := range lp.sources {
 		items, err := src.GetTopPosts(ctx)
 		if err != nil {
@@ -84,7 +92,16 @@ func (lp *LarkProvider) Broadcast(
 			continue
 		}
 
-		for _, item := range items {
+		mark := markItems[src.GetName()]
+		if mark == nil {
+			mark = &platform.Mark{}
+		}
+
+		for i := range items {
+			item := items[len(items)-1-i]
+			if !item.GetPubDate().After(mark.LastPubDate) {
+				continue
+			}
 			count += 1
 			t.Content = append(t.Content, []map[string]interface{}{
 				{
@@ -99,8 +116,10 @@ func (lp *LarkProvider) Broadcast(
 					"href": item.GetLink(),
 				},
 			})
+			mark.LastPubDate = item.GetPubDate()
+			mark.LastPubDateString = item.GetPubDate().Format(time.RFC3339)
 		}
-
+		markItems[src.GetName()] = mark
 	}
 
 	if len(t.Content) == 0 {
