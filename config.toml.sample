@@ -1,0 +1,10 @@
+[reddit]
+subreddit=""
+clientId=""
+secret=""
+username=""
+password=""
+
+[lark]
+hookId=""
+token=""
