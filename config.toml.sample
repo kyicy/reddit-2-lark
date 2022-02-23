@@ -19,25 +19,4 @@ src="https://www.gcores.com/rss"
 [lark]
 header="魂游资讯"
 hook=""
-token="keywords=["艾尔登法环", "老头环", "黑暗之魂","恶魔之魂","黑魂","只狼", "血源", "宫崎英高", "空洞骑士", "丝之歌"]
-
-[cron]
-internal="@every 10m"
-
-[feed.vgtime]
-name="游戏时光"
-src="https://www.vgtime.com/rss.jhtml"
-[feed.yystv]
-name="游研社"
-src="https://www.yystv.cn/rss/feed"
-[feed.chuapp]
-name="触乐"
-src="https://www.chuapp.com/feed"
-[feed.gcores]
-name="机核"
-src="https://www.gcores.com/rss"
-
-[lark]
-header="魂游资讯"
-hook=""
 token=""

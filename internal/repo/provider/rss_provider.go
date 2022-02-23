@@ -45,7 +45,8 @@ func (rp *RssProvider) GetTopPosts(
 	for _, item := range feed.Items {
 		var matched bool
 		for _, keyword := range rp.conf.Keywords {
-			if strings.Contains(item.Title, keyword) {
+			if strings.Contains(item.Title, keyword) ||
+				strings.Contains(item.Description, keyword) {
 				matched = true
 				break
 			}
