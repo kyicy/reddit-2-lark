@@ -36,8 +36,8 @@ func NewAgent(conf *platform.Config, xMark *platform.XMark) *Agent {
 	z, _ := zap.NewDevelopment()
 	logger := z.Sugar().Named("agent")
 	cronFunc := func() {
-		logger.Infow("cron job start", "at", time.Now().Format(time.RFC3339))
-		defer logger.Infow("cron job finished", "at", time.Now().Format(time.RFC3339))
+		logger.Infow("cron job start")
+		defer logger.Infow("cron job finished")
 		ctx := context.Background()
 		ctx, cancel := context.WithTimeout(ctx, time.Minute*5)
 		defer cancel()
