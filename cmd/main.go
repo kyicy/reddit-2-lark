@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/kyicy/rss-2-lark/internal/agent"
 	"github.com/kyicy/rss-2-lark/internal/platform"
@@ -83,11 +84,7 @@ func (c *cli) setup(cmd *cobra.Command, args []string) error {
 	}
 }
 
-func (c *cli) run(cmd *cobra.Command, args []string) error {
-	_ = agent.NewAgent(&c.cfg, &c.xMark)
-	sig := make(chan os.Signal, 1)
-	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
-	<-sig
+func (c *cli) saveXMark(cmd *cobra.Command) error {
 	bs, err := json.Marshal(c.xMark)
 	if err != nil {
 		return err
@@ -97,4 +94,32 @@ func (c *cli) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	return os.WriteFile(xMarkFile, bs, 0755)
+
+}
+
+func (c *cli) run(cmd *cobra.Command, args []string) error {
+	_ = agent.NewAgent(&c.cfg, &c.xMark)
+
+	//
+	ticker := time.NewTicker(5 * time.Minute)
+	done := make(chan bool)
+	go func() {
+		for {
+			select {
+			case <-done:
+				return
+			case <-ticker.C:
+				if err := c.saveXMark(cmd); err != nil {
+					log.Println(err)
+				}
+			}
+		}
+	}()
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
+	<-sig
+	ticker.Stop()
+	done <- true
+
+	return c.saveXMark(cmd)
 }

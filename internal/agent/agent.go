@@ -7,6 +7,7 @@ import (
 	"github.com/kyicy/rss-2-lark/internal/platform"
 	"github.com/kyicy/rss-2-lark/internal/repo/provider"
 	"github.com/robfig/cron/v3"
+	"go.uber.org/zap"
 )
 
 type Agent struct {
@@ -32,9 +33,13 @@ func NewAgent(conf *platform.Config, xMark *platform.XMark) *Agent {
 	}
 
 	lp := provider.NewLarkProvider(conf, xMark, providers...)
+	z, _ := zap.NewDevelopment()
+	logger := z.Sugar().Named("agent")
 	cronFunc := func() {
+		logger.Infow("cron job start", "at", time.Now().Format(time.RFC3339))
+		defer logger.Infow("cron job finished", "at", time.Now().Format(time.RFC3339))
 		ctx := context.Background()
-		ctx, cancel := context.WithTimeout(ctx, time.Minute*2)
+		ctx, cancel := context.WithTimeout(ctx, time.Minute*5)
 		defer cancel()
 		lp.Broadcast(ctx)
 	}
