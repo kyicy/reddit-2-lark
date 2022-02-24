@@ -138,13 +138,13 @@ func (lp *LarkProvider) Broadcast(
 
 			mark.LastPubDate = latestMarkDate
 			mark.LastPubDateString = latestMarkDate.Format(time.RFC3339)
+			lp.logger.Debugw("latest mark date", "src", src.GetName(), "date", mark.LastPubDateString)
 
 			if len(t.Content) == 0 {
 				return
 			}
 
 			for i, j := 0, len(t.Content)-1; i < j; i, j = i+1, j-1 {
-				fmt.Println(i, j)
 				t.Content[i], t.Content[j] = t.Content[j], t.Content[i]
 			}
 
