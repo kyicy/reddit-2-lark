@@ -1,4 +1,4 @@
-keywords=["艾尔登法环", "老头环", "黑暗之魂","恶魔之魂","黑魂","只狼", "血源", "宫崎英高", "空洞骑士", "丝之歌"]
+keywords=["艾尔登", "魂系", "“魂”系","老头环", "黑暗之魂","恶魔之魂","黑魂","只狼", "血源", "宫崎英高", "From Software", "空洞骑士", "丝之歌"]
 
 [cron]
 internal="@every 10m"
@@ -6,6 +6,9 @@ internal="@every 10m"
 [feed.vgtime]
 name="游戏时光"
 src="https://www.vgtime.com/rss.jhtml"
+[feed.vgEldenRing]
+name="游戏时光老头环专题"
+src="https://rsshub.app/vgtime/keyword/%E8%89%BE%E5%B0%94%E7%99%BB%E6%B3%95%E7%8E%AF"
 [feed.yystv]
 name="游研社"
 src="https://www.yystv.cn/rss/feed"
@@ -15,6 +18,9 @@ src="https://www.chuapp.com/feed"
 [feed.gcores]
 name="机核"
 src="https://www.gcores.com/rss"
+[feed.a9vg]
+name="A9VG"
+src="https://rsshub.app/a9vg/a9vg"
 
 [lark]
 header="魂游资讯"

@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/kyicy/request"
@@ -68,96 +69,122 @@ func (lp *LarkProvider) genSign(timestamp int64) (string, error) {
 func (lp *LarkProvider) Broadcast(
 	ctx context.Context,
 ) {
-	timestamp := time.Now().UnixNano() / int64(time.Second)
-	sign, err := lp.genSign(timestamp)
-	if err != nil {
-		lp.logger.Error(err)
-		return
-	}
-	botMsgReq := &LarkBotMsgReq{
-		MsgType:   "post",
-		Timestamp: fmt.Sprintf("%d", timestamp),
-		Sign:      sign,
-	}
-	t := &botMsgReq.Content.Post.ZhCn
-	t.Title = lp.config.Lark.Header
-	t.Content = make([][]map[string]interface{}, 0)
-
-	count := 0
 	markItems := lp.xMark.Items
+	var wg sync.WaitGroup
+	var mutex sync.Mutex
+
+	botMsgs := make([]*LarkBotMsgReq, 0, 16)
 	for _, src := range lp.sources {
-		items, err := src.GetTopPosts(ctx)
+		wg.Add(1)
+		go func(src BroadcastSource) {
+			defer wg.Done()
+			timestamp := time.Now().UnixNano() / int64(time.Second)
+			sign, err := lp.genSign(timestamp)
+			if err != nil {
+				lp.logger.Error(err)
+				return
+			}
+			botMsgReq := &LarkBotMsgReq{
+				MsgType:   "post",
+				Timestamp: fmt.Sprintf("%d", timestamp),
+				Sign:      sign,
+			}
+			t := &botMsgReq.Content.Post.ZhCn
+			t.Title = fmt.Sprintf("%s | %s", lp.config.Lark.Header, src.GetName())
+			t.Content = make([][]map[string]interface{}, 0)
+
+			items, err := src.GetTopPosts(ctx)
+			if err != nil {
+				lp.logger.Error(err)
+				return
+			}
+
+			mark := markItems[src.GetName()]
+			if mark == nil {
+				mark = &platform.Mark{}
+			}
+
+			count := len(items)
+
+			for i := range items {
+				item := items[len(items)-1-i]
+				if !item.GetPubDate().After(mark.LastPubDate) {
+					return
+				}
+				index := count - i
+				t.Content = append(t.Content, []map[string]interface{}{
+					{
+						"tag":       "text",
+						"un_escape": true,
+						"lines":     1,
+						"text":      fmt.Sprintf("%2d: ", index),
+					},
+					{
+						"tag":  "a",
+						"text": item.GetTitle(),
+						"href": item.GetLink(),
+					},
+				})
+				mark.LastPubDate = item.GetPubDate()
+				mark.LastPubDateString = item.GetPubDate().Format(time.RFC3339)
+			}
+
+			for i, j := 0, count-1; i < j; i, j = i+1, j-1 {
+				t.Content[i], t.Content[j] = t.Content[j], t.Content[i]
+			}
+
+			mutex.Lock()
+			markItems[src.GetName()] = mark
+			mutex.Unlock()
+
+			if len(t.Content) == 0 {
+				return
+			}
+			mutex.Lock()
+			botMsgs = append(botMsgs, botMsgReq)
+			mutex.Unlock()
+		}(src)
+	}
+	wg.Wait()
+
+	for _, botMsgReq := range botMsgs {
+		body, err := json.Marshal(botMsgReq)
 		if err != nil {
 			lp.logger.Error(err)
 			continue
 		}
 
-		mark := markItems[src.GetName()]
-		if mark == nil {
-			mark = &platform.Mark{}
+		targetUrl := lp.config.Lark.Hook
+
+		req, err := request.NewRequestWithContext(
+			ctx,
+			http.MethodPost,
+			targetUrl,
+			struct {
+				ContentType string `rh:"Content-Type"`
+			}{
+				"application/json",
+			},
+			bytes.NewReader(body),
+		)
+		if err != nil {
+			lp.logger.Error(err)
+			continue
 		}
-
-		for i := range items {
-			item := items[len(items)-1-i]
-			if !item.GetPubDate().After(mark.LastPubDate) {
-				continue
-			}
-			count += 1
-			t.Content = append(t.Content, []map[string]interface{}{
-				{
-					"tag":       "text",
-					"un_escape": true,
-					"lines":     1,
-					"text":      fmt.Sprintf("%2d: ", count),
-				},
-				{
-					"tag":  "a",
-					"text": fmt.Sprintf("[%s]%s", src.GetName(), item.GetTitle()),
-					"href": item.GetLink(),
-				},
-			})
-			mark.LastPubDate = item.GetPubDate()
-			mark.LastPubDateString = item.GetPubDate().Format(time.RFC3339)
+		res, err := lp.httpClient.Do(req)
+		// to avoid too many request error
+		time.Sleep(time.Second)
+		if err != nil {
+			lp.logger.Error(err)
+			continue
 		}
-		markItems[src.GetName()] = mark
+		defer res.Body.Close()
+		bs, err := io.ReadAll(res.Body)
+		if err != nil {
+			lp.logger.Error(err)
+			continue
+		}
+		lp.logger.Info(string(bs))
 	}
 
-	if len(t.Content) == 0 {
-		return
-	}
-	body, err := json.Marshal(botMsgReq)
-	if err != nil {
-		lp.logger.Error(err)
-		return
-	}
-
-	targetUrl := lp.config.Lark.Hook
-
-	req, err := request.NewRequestWithContext(
-		ctx,
-		http.MethodPost,
-		targetUrl,
-		struct {
-			ContentType string `rh:"Content-Type"`
-		}{
-			"application/json",
-		},
-		bytes.NewReader(body),
-	)
-	if err != nil {
-		lp.logger.Error(err)
-		return
-	}
-	res, err := lp.httpClient.Do(req)
-	if err != nil {
-		lp.logger.Error(err)
-		return
-	}
-	defer res.Body.Close()
-	bs, err := io.ReadAll(res.Body)
-	if err != nil {
-		lp.logger.Error(err)
-		return
-	}
-	lp.logger.Info(string(bs))
 }
