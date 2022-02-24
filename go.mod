@@ -5,6 +5,7 @@ go 1.17
 require (
 	github.com/kyicy/request v0.0.0-20220221153339-fbd8dc500697
 	github.com/mmcdole/gofeed v1.1.3
+	github.com/pkg/errors v0.8.1
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/spf13/cobra v1.3.0
 	github.com/spf13/viper v1.10.1

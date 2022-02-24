@@ -6,9 +6,6 @@ internal="@every 10m"
 [feed.vgtime]
 name="游戏时光"
 src="https://www.vgtime.com/rss.jhtml"
-[feed.vgEldenRing]
-name="游戏时光老头环专题"
-src="https://rsshub.app/vgtime/keyword/%E8%89%BE%E5%B0%94%E7%99%BB%E6%B3%95%E7%8E%AF"
 [feed.yystv]
 name="游研社"
 src="https://www.yystv.cn/rss/feed"
@@ -21,6 +18,10 @@ src="https://www.gcores.com/rss"
 [feed.a9vg]
 name="A9VG"
 src="https://rsshub.app/a9vg/a9vg"
+[feed.gamersky]
+name="游民星空"
+src="https://rsshub.app/gamersky/news"
+
 
 [lark]
 header="魂游资讯"

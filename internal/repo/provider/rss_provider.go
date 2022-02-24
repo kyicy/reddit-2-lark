@@ -6,6 +6,7 @@ import (
 
 	"github.com/kyicy/rss-2-lark/internal/platform"
 	"github.com/mmcdole/gofeed"
+	"github.com/pkg/errors"
 	"go.uber.org/zap"
 )
 
@@ -39,20 +40,19 @@ func (rp *RssProvider) GetTopPosts(
 	fp := gofeed.NewParser()
 	feed, err := fp.ParseURLWithContext(rp.src, ctx)
 	if err != nil {
+		err = errors.Wrapf(err, "name: %s, url: %s", rp.name, rp.src)
 		return
 	}
+	rp.logger.Debug("keyword from config", "list", rp.conf.Keywords)
 	items = make([]Broadcastable, 0)
 	for _, item := range feed.Items {
-		var matched bool
 		for _, keyword := range rp.conf.Keywords {
 			if strings.Contains(item.Title, keyword) ||
 				strings.Contains(item.Description, keyword) {
-				matched = true
+				rp.logger.Debugw("item added", "item.title", item.Title)
+				items = append(items, (*feedItem)(item))
 				break
 			}
-		}
-		if matched {
-			items = append(items, (*feedItem)(item))
 		}
 	}
 	return

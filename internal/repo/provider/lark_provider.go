@@ -109,7 +109,8 @@ func (lp *LarkProvider) Broadcast(
 			for i := range items {
 				item := items[len(items)-1-i]
 				if !item.GetPubDate().After(mark.LastPubDate) {
-					return
+					lp.logger.Debugw("skipped item", "item.title", item.GetTitle(), "item.pubDate", item.GetPubDate(), "mark.LastPubDate", mark.LastPubDate)
+					continue
 				}
 				index := count - i
 				t.Content = append(t.Content, []map[string]interface{}{
@@ -129,7 +130,12 @@ func (lp *LarkProvider) Broadcast(
 				mark.LastPubDateString = item.GetPubDate().Format(time.RFC3339)
 			}
 
-			for i, j := 0, count-1; i < j; i, j = i+1, j-1 {
+			if len(t.Content) == 0 {
+				return
+			}
+
+			for i, j := 0, len(t.Content)-1; i < j; i, j = i+1, j-1 {
+				fmt.Println(i, j)
 				t.Content[i], t.Content[j] = t.Content[j], t.Content[i]
 			}
 
@@ -137,9 +143,6 @@ func (lp *LarkProvider) Broadcast(
 			markItems[src.GetName()] = mark
 			mutex.Unlock()
 
-			if len(t.Content) == 0 {
-				return
-			}
 			mutex.Lock()
 			botMsgs = append(botMsgs, botMsgReq)
 			mutex.Unlock()
