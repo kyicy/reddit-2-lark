@@ -106,9 +106,13 @@ func (lp *LarkProvider) Broadcast(
 
 			count := len(items)
 
+			initMarkDate := mark.LastPubDate
+			latestMarkDate := mark.LastPubDate
+
 			for i := range items {
 				item := items[len(items)-1-i]
-				if !item.GetPubDate().After(mark.LastPubDate) {
+				pubDate := item.GetPubDate()
+				if !pubDate.After(initMarkDate) {
 					lp.logger.Debugw("skipped item", "item.title", item.GetTitle(), "item.pubDate", item.GetPubDate(), "mark.LastPubDate", mark.LastPubDate)
 					continue
 				}
@@ -127,8 +131,13 @@ func (lp *LarkProvider) Broadcast(
 					},
 				})
 				mark.LastPubDate = item.GetPubDate()
-				mark.LastPubDateString = item.GetPubDate().Format(time.RFC3339)
+				if pubDate.After(latestMarkDate) {
+					latestMarkDate = pubDate
+				}
 			}
+
+			mark.LastPubDate = latestMarkDate
+			mark.LastPubDateString = latestMarkDate.Format(time.RFC3339)
 
 			if len(t.Content) == 0 {
 				return
