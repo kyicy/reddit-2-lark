@@ -90,7 +90,7 @@ func (lp *LarkProvider) Broadcast(
 				Sign:      sign,
 			}
 			t := &botMsgReq.Content.Post.ZhCn
-			t.Title = fmt.Sprintf("%s | %s", lp.config.Lark.Header, src.GetName())
+			t.Title = src.GetName()
 			t.Content = make([][]map[string]interface{}, 0)
 
 			items, err := src.GetTopPosts(ctx)
